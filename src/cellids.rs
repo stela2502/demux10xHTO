@@ -4,8 +4,7 @@
 
 use std::collections::BTreeMap;
 use kmers::naive_impl::Kmer;
-
-use crate::sampleids::SampleIds;
+use std::collections::HashSet;
 
 //use std::thread;
 
@@ -13,41 +12,74 @@ use crate::sampleids::SampleIds;
 //use crate::cellids::cellIDsError::NnuclError;
 
 
-pub struct CellData{
-    pub values = Vec<u32>
+/// GeneCount is an entry in the CellData and therefore does not need to collect it's own id
+pub GeneCount{
+    pub umi: HashSet<u64>
 }
 
+impl GeneCount{
+    pub fn new() ->Self{
+        umi = HashSet::new();
+        Self{
+            umi
+        }
+    }
+
+    pub fn add( &mut self, umi:u64 ){
+        self.umi.insert( umi );
+    }
+
+}
+
+/// CellData here is a storage for the total UMIs. UMIs will be checked per cell
+/// But I do not correct the UMIs here - even with sequencing errors 
+/// we should get a relatively correct picture as these folow normal distribution.
+pub struct CellData{
+    pub gene: BTreeMap<u64, GeneCount>
+}
 
 impl CellData{
-    pub fn new(id:&[u8; 16], lenth: usize) -> Self{
-        values = vec![ 0; length ];
+    pub fn new( ) -> Self{
+        gene =  BTreeMap::new(); // to collect the sample counts
         Self{
-            id,
-            values
+            gene
         }
     }
-    pub fn add1(&mut self, pos: usize ){
-        self.values[pos] += 1;
-    }
-    pub fn to_string(&self, ) -> &str {
-
-        ret:&mut str = std::str::from_utf8(self.id );
-        for dat in self.values{
-            ret = format!( "{} {}",ret, dat ); 
+    pub fn add1(&mut self, sample: u64, umi:u64 ){
+        match self.gene.get( sample) {
+            Ok(mut gene) => gene.add( umi );
+            Err(_) => {
+                let gc = GeneCount::new();
+                gc.insert( umi );
+                gene.insert( sample, gc );
         }
-        return ret;
+    }
+    fn filleVec( &self, samples:Vec<u64>, ret:&Vec<u32>) {
+        for i in 0..samples.len() {
+            ret[i] = match self.gene.get( sample[id] ){
+                Ok(id) => id,
+                Err(_) => 0
+            }
+        }
+    }
+    pub fn to_str<'live>(&self, samples:Vec<u64> ) -> &'live str {
+        let data = Vec<u32>;
+        data = vec!(0, samples.len());
+        fillVec( samples, data );
+        let ret = "\t".join( data ); 
+        return ret
     }
 }
 
 // and here the data
-pub struct CellIds<'a>{    
+pub struct CellIds10x<'a>{    
     //kmer_len: usize,
     cells = BTreeMap<u64, CellData>
 }
 
 
 // here the functions
-impl CellIds<'_>{
+impl CellIds10x<'_>{
 
     pub fn new()-> Self {
 

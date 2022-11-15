@@ -20,38 +20,29 @@ pub struct Info {
 impl Info{
         pub fn new( name: &str )-> Self {
             name = name.clone();
+
             Self {
                 name,
             }
-        }
-        pub fn add_umi(&mut self, seq: u64 ) {
-            self.umi.insert( seq );
-        }
-        pub fn to_str<'life>( &mut self ) -> &'life str{
-            let ret = format("{}\t{}",self.name,  self.umi.len() );
-            return (ret)
         }
 }
 
 // and here the data
 pub struct GeneIds{    
-    kmers: BTreeMap<u64, u32>,
+    kmers: BTreeMap<u64, Info>,
     kmer_size: usize,
     max_value: u32,
-    pub info: BTreeMap<u32, Info>
 }
 
 // here the functions
 impl GeneIds{
     pub fn new(kmer_size: usize)-> Self {
-        let kmers = BTreeMap::<u64, u32>::new();
+        let kmers = BTreeMap::<u64, Info>::new();
         let max_value:u32 = 0;
-        let info = BTreeMap::<u32, Info>::new();
         Self {
             kmers,
             kmer_size: kmer_size,
             max_value,
-            info
         }
     }
 
@@ -83,7 +74,7 @@ impl GeneIds{
         //println!("GeneIds::get - checking this sequence: {} and the at pos {}", km, id );
         let ret = match self.kmers.get_mut(&km){
             Some(c1) => c1, 
-            None => Err::<u32, &str>( "Genes NoMatch"), 
+            None => return Err::<u32, &str>( "Genes NoMatch"), 
         }
         OK( ret )
     }

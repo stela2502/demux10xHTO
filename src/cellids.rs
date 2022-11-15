@@ -13,7 +13,7 @@ use std::collections::HashSet;
 
 
 /// GeneCount is an entry in the CellData and therefore does not need to collect it's own id
-pub GeneCount{
+pub struct GeneCount{
     pub umi: HashSet<u64>
 }
 

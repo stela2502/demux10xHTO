@@ -45,13 +45,13 @@ impl CellData{
             gene
         }
     }
-    pub fn add1(&mut self, sample: u64, umi:u64 ){
-        match self.gene.get( sample) {
+    pub fn add(&mut self, geneid: u64, umi:u64 ){
+        match self.gene.get( geneid) {
             Ok(mut gene) => gene.add( umi );
             Err(_) => {
                 let gc = GeneCount::new();
                 gc.insert( umi );
-                gene.insert( sample, gc );
+                gene.insert( geneid, gc );
         }
     }
     fn filleVec( &self, samples:Vec<u64>, ret:&Vec<u32>) {
@@ -93,7 +93,7 @@ impl CellIds10x<'_>{
         }
     }
 
-    pub fn to_cellid (&mut self, r1: &[u8], c1: Vec<usize>, c2: Vec<usize>, c3: Vec<usize>  )-> Result< u32, &CellData>{
+    pub fn add (&mut self, r1: &[u8], gene_id: u64  )-> Result< u32, &CellData>{
         let mut cell_id:CellData;
 
         let kmer =  &r1[0..16];
@@ -105,20 +105,18 @@ impl CellIds10x<'_>{
             }
         }
         let km = Kmer::from(kmer).into_u64();
-        cell_id += match self.cells.get( &km ){
+        let umi = Kmer::from( &r1[16..r1.len()] ).into_u64();
+        cell_id += match self.cells.get( km ){
             Some(c1) => {
-                //println!("to_cellid the c1 {}", c1 );
-                c1
+                c1.add( gene_id, umi );
             },
             None => {
-                self.cells.insert( &km, CellData::new(10) );
-                Some( match self.cells.get( &km ) )
+                let data = CellData::new();
+                data.add( gene_id, umi );
+                self.cells.insert( &km, data );
             }
         }
-        return cell_id;
     }
-
-
 
 }
 

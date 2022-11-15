@@ -169,13 +169,19 @@ fn main() {
                 let seqrec1 = record1.expect("invalid record");
 
                 // totally unusable sequence
-                if seqrec1.seq().len() < 53 {
+                if seqrec1.seq().len() < 20 { // 16 + some UMI
                     unknown +=1;
                     continue;
                 }
                 //let seq = seqrec.seq().into_owned();
-
-                match samples.get( &seqrec.seq(), 9, 10 ){
+                for nuc in seqrec1.seq() {  
+                    if *nuc ==b'N'{
+                        unknown +=1;
+                        continue;
+                    }
+                }
+            
+                match samples.get( &seqrec.seq() ){
                     Ok(id) => {
                         match cells.to_cellid( &seqrec1.seq(), vec![0,9], vec![21,30], vec![43,52]){
                             Ok(val) => {

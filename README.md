@@ -7,6 +7,11 @@ A tiny project specific 10x demultiplexer as I did not get any data regarding de
 
 ```
 ./target/debug/demux10x -r testData/n10000_HTO_S1_L001_R1_001.fastq.gz -f testData/n10000_HTO_S1_L001_R2_001.fastq.gz -b testData/HTOs.csv -o testData/outpath
+
+# or 
+
+./target/release/demux10x -r testData/n10000_HTO_S1_L001_R1_001.fastq.gz -f testData/n10000_HTO_S1_L001_R2_001.fastq.gz -b testData/HTOs.csv -o testData/outpath
+
 ```
 
 # Build

@@ -2,7 +2,7 @@
 /// The id matching most kmers is returned.
 
 use std::collections::BTreeMap;
-//use std::collections::HashSet;
+use std::collections::HashSet;
 
 use kmers::naive_impl::Kmer;
 use crate::fill_kmer_vec;
@@ -29,26 +29,40 @@ impl  Info{
         }
 }
 
-// and here the data
+/// GeneIds harbors the antibody tags
+/// these sequences have (to my knowmledge) 15 bp os length
+/// but that can be different, too. 
+/// Hence we store here 
+/// kmers     : the search object
+/// seq_len   : the length of the sequences (10x oversequences them)
+/// kmer_size : the length of the kmers
+/// names     : a hashset for the gene names
 pub struct GeneIds{    
     pub kmers: BTreeMap<u64, Info>,
+    pub seq_len: usize,
     kmer_size: usize,
-    max_value: u32,
+    pub names: HashSet<std::string::String>
 }
 
 // here the functions
 impl GeneIds{
-    pub fn new(kmer_size: usize)-> Self {
+    pub fn new(kmer_size: usize )-> Self {
         let kmers = BTreeMap::<u64, Info>::new();
-        let max_value:u32 = 0;
+        let names = HashSet::<std::string::String>::new();
+        let seq_len = 0;
         Self {
             kmers,
+            seq_len,
             kmer_size: kmer_size,
-            max_value,
+            names
         }
     }
 
     pub fn add(&mut self, seq: &[u8], name: std::string::String ){
+        
+        if seq.len() > self.seq_len{
+            self.seq_len = seq.len() 
+        }
         for kmer in needletail::kmer::Kmers::new(seq, self.kmer_size as u8 ) {
             for nuc in kmer {
                 if *nuc ==b'N'{
@@ -60,8 +74,8 @@ impl GeneIds{
             let km = Kmer::from(kmer).into_u64();
             let info = Info::new(km, name.clone() );
             self.kmers.insert(km, info);
+            self.names.insert( name.clone() );
         }
-        self.max_value += 1;
     }
 
 
@@ -79,7 +93,7 @@ impl GeneIds{
         let id = 0;
 
         if kmer_vec.len() == 0 {
-            eprintln!( "problematic sequence: {:?}", std::str::from_utf8( seq ) );
+            eprintln!( "Seq length: {};  -> problematic sequence: {:?}", self.kmer_size, std::str::from_utf8( seq ) );
             return Err::<&mut Info, &str>( "Genes NoMatch")
         }  
         let km = kmer_vec[id];

@@ -129,51 +129,48 @@ fn main() {
                     continue 'main;
                 }
                 let seq = seqrec1.seq().into_owned(); // here the cells are coded
+                let seq2 = seqrec.seq().into_owned();
                 for nuc in &seq {  
                     if *nuc ==b'N'{
                         unknown +=1;
                         continue 'main;
                     }
                 }
+                
+                let umi:u64  =  Kmer::from( &seq[15..seq.len()] ).into_u64();
+                let cell:u64  = Kmer::from( &seq[0..16] ).into_u64();
+                let cell_name = match std::str::from_utf8( &seq[0..16] ){
+                    Ok(t) => t,
+                    Err(err) => panic!("the cellID could not be converted to string! {}",err)
+                };
 
-                //let kmer = needletail::kmer::Kmers::new(&seq[16..seq.len()], (seq.len()-16) as u8 ).next();
-                for kmer in needletail::kmer::Kmers::new(&seq[15..seq.len()], (seq.len()-16) as u8 ){ // should get me exactly 1
-                    // println!("this will break - trying to add an entry for \nr1:{:?}\nr2:{:?}", 
-                    //     std::str::from_utf8( &seqrec1.seq().into_owned()), 
-                    //     std::str::from_utf8( &seqrec.seq().into_owned()) 
-                    // );
-                    let umi:u64  =  Kmer::from( kmer ).into_u64();
-                    let cell:u64  = Kmer::from( &seq[0..16] ).into_u64();
-                    let cell_name = match std::str::from_utf8( &seq[0..16] ){
-                        Ok(t) => t,
-                        Err(err) => panic!("the cellID could not be converted to string! {}",err)
-                    };
+                let gene_read = &seq2[0..genes.seq_len];
 
-                    match genes.get( &seqrec.seq().into_owned() ){
-                        Ok(gene_id) => {
-                            //println!("Gene has matched");
-                            match cells.get( cell, cell_name.to_string() ){
-                                Ok(cell_data) => {
-                                    ok += 1;
-                                    cell_data.add(gene_id.id, umi);
-                                },
-                                Err(_err) => {
-                                    //eprintln!("But somehow we could not get the entry added!?! {} ", err);
-                                    unknown +=1;
-                                    continue 'main;
-                                }, //we mainly need to collect cellids here and it does not make sense to think about anything else right now.
-                            };
-                        },
-                        Err(_err) => {
-                            //println!("{}",err);
-                            //seqrec1.write(&mut file1_ambig_out, None)?;
-                            //seqrec.write(&mut file2_ambig_out, None)?;
-                            //seqrec1.write(&mut outBuff1, None)?;
-                            //seqrec.write(&mut outBuff2, None)?;
-                            unknown +=1;
-                        }
+                match genes.get( gene_read ){
+                    Ok(gene_id) => {
+                        //println!("Gene has matched");
+                        match cells.get( cell, cell_name.to_string() ){
+                            Ok(cell_data) => {
+                                ok += 1;
+                                cell_data.add(gene_id.id, umi);
+                            },
+                            Err(_err) => {
+                                //eprintln!("But somehow we could not get the entry added!?! {} ", err);
+                                unknown +=1;
+                                continue 'main;
+                            }, //we mainly need to collect cellids here and it does not make sense to think about anything else right now.
+                        };
+                    },
+                    Err(_err) => {
+                        //println!("{}",err);
+                        //seqrec1.write(&mut file1_ambig_out, None)?;
+                        //seqrec.write(&mut file2_ambig_out, None)?;
+                        //seqrec1.write(&mut outBuff1, None)?;
+                        //seqrec.write(&mut outBuff2, None)?;
+                        unknown +=1;
                     }
                 }
+                
             } else {
                 println!("file 2 had reads remaining, but file 1 ran out of reads!");
             }
@@ -216,13 +213,13 @@ pub fn fill_kmer_vec<'a>( seq: needletail::kmer::Kmers<'a>, kmer_vec: &mut Vec<u
    kmer_vec.clear();
    let mut bad = 0;
    for km in seq {
-        // I would like to add a try catch here - possibly the '?' works?
-        // if this can not be converted it does not even make sense to keep this info
-        for nuc in km{
+    bad = 0;
+        for nuc in km {
             if *nuc ==b'N'{
                 bad = 1;
             }
         }
+
         if bad == 0{
             // let s = str::from_utf8(km);
             // println!( "this is the lib: {:?}",  s );

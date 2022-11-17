@@ -121,13 +121,14 @@ impl GeneIds{
     // }
 
     pub fn to_header( &self ) -> std::string::String {
-        let mut ret: Vec<std::string::String>;
-        ret = vec![" ".to_string(); self.names.len()];
+        let mut ret= Vec::<std::string::String>::with_capacity( self.names.len() +2 );
         //println!( "I get try to push into a {} sized vector", self.names.len());
-        for (obj, id) in &self.names {
+        for (obj, _id) in &self.names {
             //println!( "Pushing {} -> {}", obj, *id-1);
-            ret[*id-1] = format!( "{}", obj);
+            ret.push( format!( "{}", obj)) ;
         }
+        ret.push("Faction total".to_string());
+        ret.push("Most likely name".to_string());
         return "CellID\t".to_owned()+&ret.join("\t")
     }
 

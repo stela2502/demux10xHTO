@@ -113,9 +113,13 @@ impl CellData{
     
     pub fn to_str<'live>(&mut self, genes:&GeneIds ) -> std::string::String {
 
-        let mut data = Vec::<std::string::String>::with_capacity( genes.names.len()+1 );
+        let mut data = Vec::<std::string::String>::with_capacity( genes.names.len()+3 );
         data.push(self.name.clone());
 
+        let mut names = Vec::<std::string::String>::with_capacity( genes.names.len() );
+        for (name, _id) in &genes.names{
+            names.push( name.clone() )
+        }
         let mut nums:Vec<u32>;
         let mut real_id:usize;
 
@@ -133,11 +137,27 @@ impl CellData{
         }
 
         //println!("I have a data vector wiith capacity {} and a nums vector with {}", genes.names.len()+1, nums.len());
+        
+        // get some statis and a little bit more
+        let mut total:u32 = 0;
+        let mut max:u32 = 0;
+
         for i in 0..nums.len() {
+            total += nums[i];
+            if  nums[i] > max{
+                max = nums[i]
+            }
             data.push( nums[i].to_string())
         }
-        let ret = data.join( "\t" );
+        for i in 0..nums.len() {
+            if nums[i] == max {
+                data.push( names[i].clone());
+                break; 
+            }
+        }
+        data.push( (max as f32 / total as f32 ).to_string());
 
+        let ret = data.join( "\t" );
         format!( "{}",ret)
     }
 }

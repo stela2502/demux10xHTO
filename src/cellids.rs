@@ -8,6 +8,7 @@ use std::collections::HashSet;
 
 //use std::thread;
 use crate::geneids::GeneIds;
+//use crate::geneids::Info;
 
 //mod cellIDsError;
 //use crate::cellids::cellIDsError::NnuclError;
@@ -15,6 +16,7 @@ use std::io::BufWriter;
 use std::fs::File;
 use std::io::Write;
 
+use std::path::PathBuf;
 
 /// GeneCount is an entry in the CellData and therefore does not need to collect it's own id
 pub struct GeneCount{
@@ -109,19 +111,30 @@ impl CellData{
     //    }
     // }
     
-    pub fn to_str<'live>(&mut self, samples:&Vec<u64> ) -> std::string::String {
-        let mut data:Vec<std::string::String>;
-        data = vec!(0.to_string(); samples.len()+1);
-        data[0] = self.name.clone();
-        let s = samples.clone();
+    pub fn to_str<'live>(&mut self, genes:&GeneIds ) -> std::string::String {
 
-        //println!( "to_str -> what have I got here - if any {:?}", s );
+        let mut data = Vec::<std::string::String>::with_capacity( genes.names.len()+1 );
+        data.push(self.name.clone());
 
-        for i in 0..s.len() {
-            data[i+1] = match self.gene.get( &s[i] ){
-                Some(id) => id.umi.len().to_string(),
-                None => "0".to_string()
+        let mut nums:Vec<u32>;
+        let mut real_id:usize;
+
+        nums = vec!(0 as u32; genes.names.len());
+
+        for (id , info ) in &genes.kmers {
+            real_id = match &genes.names.get( &info.name ){
+                Some(num) => **num,
+                None => panic!("I can not find the name {} in the genes object", info.name )
+            };
+            nums[ real_id-1 ] += match self.gene.get( id ){
+                Some(gene_count) => gene_count.umi.len() as u32,
+                None => 0 as u32
             }
+        }
+
+        //println!("I have a data vector wiith capacity {} and a nums vector with {}", genes.names.len()+1, nums.len());
+        for i in 0..nums.len() {
+            data.push( nums[i].to_string())
         }
         let ret = data.join( "\t" );
 
@@ -189,8 +202,16 @@ impl <'a> CellIds10x{
     //     Ok( () )
     // }
 
-    pub fn write (&mut self, mut writer: BufWriter<&File>, genes: GeneIds) -> Result< (), &str>{
+    pub fn write (&mut self, file_path: PathBuf, genes: &GeneIds) -> Result< (), &str>{
         
+        let file = match File::create( file_path ){
+            Ok(file) => file,
+            Err(err) => {
+                panic!("Error: {:#?}", err);
+            }
+        };
+        let mut writer = BufWriter::new(&file);
+
         match writeln!( writer, "{}", genes.to_header() ){
             Ok(_) => (),
             Err(err) => {
@@ -199,19 +220,11 @@ impl <'a> CellIds10x{
             }
         };
 
-        let mut gene_ids: Vec<u64>;
-        gene_ids = Vec::with_capacity( genes.kmers.len() );
-
-        genes.to_ids( &mut gene_ids );
-
-        //println!( "what have I got here - if any {:?}", gene_ids );
-
-
         for ( _id,  cell_obj ) in &mut self.cells {
 
             //println!( "get something here?: {}", cell_obj.to_str( &gene_ids ) );
 
-            match writeln!( writer, "{}", cell_obj.to_str( &gene_ids )){
+            match writeln!( writer, "{}", cell_obj.to_str( genes )){
             // the compiler thought this might be more correct...
             //match writeln!( writer, "{}", cell_obj.to_str( <Vec<u64> as Borrow<Borrowed>>::borrow(&gene_ids).clone() ) ){
              Ok(_) => (),
@@ -233,47 +246,47 @@ impl <'a> CellIds10x{
 //    };
 // }
 
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn getsamples() {
-        let cells = crate::cell_ids::new();
+// #[cfg(test)]
+// mod tests {
+//     #[test]
+//     fn getsamples() {
+//         let cells = crate::cell_ids::new();
 
-        let mut primer = b"GTCGCTATANNNNNNNNNNNNTACAGGATANNNNNNNNNNNNNAAGCCTTCT";
-        let mut id:u32 = 1;
-        let mut exp= ((id-1)* 96 * 96 + (id-1) * 96 + (id-1) +1) as u32;
-        match cells.to_cellid( primer, vec![0,9], vec![21,30], vec![43,52]){
-            Ok(val) => assert_eq!( val , exp ), // will never insert one element twice. Great!
-            Err(err) => (), //we mainly need to collect cellids here and it does not make sense to think about anything else right now.
-        };
+//         let mut primer = b"GTCGCTATANNNNNNNNNNNNTACAGGATANNNNNNNNNNNNNAAGCCTTCT";
+//         let mut id:u32 = 1;
+//         let mut exp= ((id-1)* 96 * 96 + (id-1) * 96 + (id-1) +1) as u32;
+//         match cells.to_cellid( primer, vec![0,9], vec![21,30], vec![43,52]){
+//             Ok(val) => assert_eq!( val , exp ), // will never insert one element twice. Great!
+//             Err(err) => (), //we mainly need to collect cellids here and it does not make sense to think about anything else right now.
+//         };
         
-        let mut exp2 = vec![b"GTCGCTATA", b"TACAGGATA", b"AAGCCTTCT"];
-        assert_eq!( cells.to_sequence( exp ), exp2 );
-        // 3, 3, 3
-        primer = b"CTTCACATANNNNNNNNNNNNTGTGAAGAANNNNNNNNNNNNNCACAAGTAT";
-        id = 3;
-        exp = ((id-1)* 96 * 96 + (id-1) * 96 + (id-1) +1) as u32;
-        exp2 = vec![b"CTTCACATA", b"TGTGAAGAA", b"CACAAGTAT"];
-        match cells.to_cellid( primer, vec![0,9], vec![21,30], vec![43,52]){
-            Ok(val) => assert_eq!( val , exp ), // will never insert one element twice. Great!
-            Err(err) => (), //we mainly need to collect cellids here and it does not make sense to think about anything else right now.
-        };
-        //assert_eq!( cells.to_cellid( primer, vec![0,9], vec![21,30], vec![43,52])? , exp );
-        assert_eq!( cells.to_sequence( exp ), exp2 );
+//         let mut exp2 = vec![b"GTCGCTATA", b"TACAGGATA", b"AAGCCTTCT"];
+//         assert_eq!( cells.to_sequence( exp ), exp2 );
+//         // 3, 3, 3
+//         primer = b"CTTCACATANNNNNNNNNNNNTGTGAAGAANNNNNNNNNNNNNCACAAGTAT";
+//         id = 3;
+//         exp = ((id-1)* 96 * 96 + (id-1) * 96 + (id-1) +1) as u32;
+//         exp2 = vec![b"CTTCACATA", b"TGTGAAGAA", b"CACAAGTAT"];
+//         match cells.to_cellid( primer, vec![0,9], vec![21,30], vec![43,52]){
+//             Ok(val) => assert_eq!( val , exp ), // will never insert one element twice. Great!
+//             Err(err) => (), //we mainly need to collect cellids here and it does not make sense to think about anything else right now.
+//         };
+//         //assert_eq!( cells.to_cellid( primer, vec![0,9], vec![21,30], vec![43,52])? , exp );
+//         assert_eq!( cells.to_sequence( exp ), exp2 );
 
-        // and the last one
-        primer = b"TGCGATCTANNNNNNNNNNNNCAACAACGGNNNNNNNNNNNNNCATAGGTCA";
-        id = 96;
-        exp = ((id-1)* 96 * 96 + (id-1) * 96 + (id-1) +1) as u32;
-        exp2 = vec![b"TGCGATCTA", b"CAACAACGG", b"CATAGGTCA"];
-        assert_eq!( 884735+1 , exp);
-        match cells.to_cellid( primer, vec![0,9], vec![21,30], vec![43,52]){
-            Ok(val) => assert_eq!( val , exp ), // will never insert one element twice. Great!
-            Err(err) => (), //we mainly need to collect cellids here and it does not make sense to think about anything else right now.
-        };
-        //assert_eq!( cells.to_cellid( primer, vec![0,9], vec![21,30], vec![43,52])? , exp );
-        assert_eq!( cells.to_sequence( exp ), exp2 );        
-    }
-}
+//         // and the last one
+//         primer = b"TGCGATCTANNNNNNNNNNNNCAACAACGGNNNNNNNNNNNNNCATAGGTCA";
+//         id = 96;
+//         exp = ((id-1)* 96 * 96 + (id-1) * 96 + (id-1) +1) as u32;
+//         exp2 = vec![b"TGCGATCTA", b"CAACAACGG", b"CATAGGTCA"];
+//         assert_eq!( 884735+1 , exp);
+//         match cells.to_cellid( primer, vec![0,9], vec![21,30], vec![43,52]){
+//             Ok(val) => assert_eq!( val , exp ), // will never insert one element twice. Great!
+//             Err(err) => (), //we mainly need to collect cellids here and it does not make sense to think about anything else right now.
+//         };
+//         //assert_eq!( cells.to_cellid( primer, vec![0,9], vec![21,30], vec![43,52])? , exp );
+//         assert_eq!( cells.to_sequence( exp ), exp2 );        
+//     }
+// }
 
 

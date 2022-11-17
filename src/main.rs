@@ -7,7 +7,7 @@ use serde::Deserialize;
 use needletail::parse_fastx_file;
 use kmers::naive_impl::Kmer;
 //use std::collections::HashSet;
-use std::io::BufWriter;
+//use std::io::BufWriter;
 // use std::io::BufReader;
 // use std::str;
 
@@ -19,7 +19,7 @@ mod geneids;
 use crate::geneids::GeneIds;
 
 use std::path::PathBuf;
-use std::fs::File;
+//use std::fs::File;
 use std::fs;
 
 //use std::io::prelude::*;
@@ -59,6 +59,20 @@ struct BCMapRecord {
 
 /// parse_bc_map will read in the bc map two column table and create the lookup genes 
 /// class with this data
+/// # Examples
+///
+/// ```
+///
+/// let mut genes = parse_bc_map( "testData/HTOs.csv", 9 );
+///
+/// let exp = vec![0,1,2,3,4,5,6];
+/// let mut data = Vec::<usize>::with_capacity(7);
+/// for ( name, id ) in &genes.names{
+///     data.push(id);
+/// }
+///
+/// assert_eq!(exp, data );
+/// ```
 fn parse_bc_map(bc_map: &str, sub_len: usize ) -> GeneIds {
 
     let mut rdr = csv::ReaderBuilder::new()
@@ -147,12 +161,12 @@ fn main() {
                 let gene_read = &seq2[0..genes.seq_len];
 
                 match genes.get( gene_read ){
-                    Ok(gene_id) => {
+                    Some(gene_id) => {
                         //println!("Gene has matched");
                         match cells.get( cell, cell_name.to_string() ){
                             Ok(cell_data) => {
                                 ok += 1;
-                                cell_data.add(gene_id.id, umi);
+                                cell_data.add(gene_id, umi);
                             },
                             Err(_err) => {
                                 //eprintln!("But somehow we could not get the entry added!?! {} ", err);
@@ -161,14 +175,7 @@ fn main() {
                             }, //we mainly need to collect cellids here and it does not make sense to think about anything else right now.
                         };
                     },
-                    Err(_err) => {
-                        //println!("{}",err);
-                        //seqrec1.write(&mut file1_ambig_out, None)?;
-                        //seqrec.write(&mut file2_ambig_out, None)?;
-                        //seqrec1.write(&mut outBuff1, None)?;
-                        //seqrec.write(&mut outBuff2, None)?;
-                        unknown +=1;
-                    }
+                    None => unknown +=1,
                 }
                 
             } else {
@@ -183,16 +190,8 @@ fn main() {
         let file_path = PathBuf::from(&opts.outpath).join(
             format!("Cell2Sample.{}.tsv", fp1.file_name().unwrap().to_str().unwrap() )
         );
-        let file = match File::create( file_path ){
-            Ok(file) => file,
-            Err(err) => {
-                eprintln!("Error: {:#?}", err);
-                std::process::exit(1)
-            }
-        };
-        let writer = BufWriter::new(&file);
 
-        match cells.write ( writer, genes ) {
+        match cells.write ( file_path, &genes ) {
             Ok(_) => (),
             Err(err) => panic!("Error in the data write: {}", err)
         };
@@ -211,7 +210,7 @@ fn main() {
 
 pub fn fill_kmer_vec<'a>( seq: needletail::kmer::Kmers<'a>, kmer_vec: &mut Vec<u64>) {
    kmer_vec.clear();
-   let mut bad = 0;
+   let mut bad;
    for km in seq {
     bad = 0;
         for nuc in km {
@@ -226,4 +225,22 @@ pub fn fill_kmer_vec<'a>( seq: needletail::kmer::Kmers<'a>, kmer_vec: &mut Vec<u
             kmer_vec.push(Kmer::from(km).into_u64());
         }
    }
+}
+
+
+#[cfg(test)]
+mod tests {
+    #[test]    
+    fn test1 () {
+        let genes = super::parse_bc_map( "testData/HTOs.csv", 9 );
+
+        let exp = vec![0,1,2,3,4,5,6];
+        let mut data = Vec::<usize>::with_capacity(7);
+        for ( name, id ) in &genes.names{
+            eprintln!( "{}", id);
+            data.push(*id -1);
+        }
+        assert_eq!( exp, data);
+
+    }
 }

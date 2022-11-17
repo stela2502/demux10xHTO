@@ -7,7 +7,6 @@ use std::collections::HashSet;
 use kmers::naive_impl::Kmer;
 use crate::fill_kmer_vec;
 
-
 //mod cellIDsError;
 //use crate::cellids::cellIDsError::NnuclError;
 
@@ -33,28 +32,32 @@ impl  Info{
 /// these sequences have (to my knowmledge) 15 bp os length
 /// but that can be different, too. 
 /// Hence we store here 
-/// kmers     : the search object
-/// seq_len   : the length of the sequences (10x oversequences them)
-/// kmer_size : the length of the kmers
-/// names     : a hashset for the gene names
+/// kmers       : the search object
+/// seq_len     : the length of the sequences (10x oversequences them)
+/// kmer_size   : the length of the kmers
+/// names       : a hashset for the gene names
+/// bad_entries : a hash to save bad entries (repetetive ones)
 pub struct GeneIds{    
     pub kmers: BTreeMap<u64, Info>,
     pub seq_len: usize,
     kmer_size: usize,
-    pub names: HashSet<std::string::String>
+    pub names: BTreeMap<std::string::String, usize>,
+    bad_entries: HashSet<u64>
 }
 
 // here the functions
 impl GeneIds{
     pub fn new(kmer_size: usize )-> Self {
         let kmers = BTreeMap::<u64, Info>::new();
-        let names = HashSet::<std::string::String>::new();
+        let names = BTreeMap::<std::string::String, usize>::new();
+        let bad_entries = HashSet::<u64>::new();
         let seq_len = 0;
         Self {
             kmers,
             seq_len,
             kmer_size: kmer_size,
-            names
+            names,
+            bad_entries
         }
     }
 
@@ -72,14 +75,18 @@ impl GeneIds{
             //println!("Adding a gene id os length {} with seq {:?}", self.kmer_size, std::str::from_utf8(kmer) );
             // if  id == 1 { let s = str::from_utf8(kmer); println!( "this is the lib: {:?}",  s )};
             let km = Kmer::from(kmer).into_u64();
-            let info = Info::new(km, name.clone() );
-            self.kmers.insert(km, info);
-            self.names.insert( name.clone() );
+            if self.kmers.contains_key ( &km ){
+                self.bad_entries.insert( km.clone() );
+                self.kmers.remove( &km );
+            }else {
+                let info = Info::new(km, name.clone() );
+                self.kmers.insert(km, info);
+                self.names.insert( name.clone(), self.names.len() );
+            }
         }
     }
 
-
-    pub fn get(&mut self, seq: &[u8] ) -> Result< &mut Info, &str>{
+    pub fn get(&mut self, seq: &[u8] ) -> Option< u64 >{
         
         // let min_value = 2;
         // let min_z = 1;
@@ -90,42 +97,41 @@ impl GeneIds{
 
         fill_kmer_vec(kmers, &mut kmer_vec);
 
-        let id = 0;
+        let mut ret:Option<u64> = None;
 
         if kmer_vec.len() == 0 {
             eprintln!( "Seq length: {};  -> problematic sequence: {:?}", self.kmer_size, std::str::from_utf8( seq ) );
-            return Err::<&mut Info, &str>( "Genes NoMatch")
+            return ret
         }  
-        let km = kmer_vec[id];
 
-        //println!("GeneIds::get - checking this sequence: {} and the at pos {}", km, id );
-        let ret = match self.kmers.get_mut(&km){
-            Some(c1) => c1, 
-            None => return Err::<&mut Info, &str>( "Genes NoMatch"), 
-        };
-        Ok( ret )
-    }
-
-    pub fn to_ids( &self,  ret:&mut Vec<u64> )  {
-        ret.clear();
-        for (i, _obj) in &self.kmers {
-            ret.push(*i );
+        for km in kmer_vec{
+            ret = match self.kmers.get(&km){
+                Some(c1) => Some(c1.id), 
+                None => continue
+            };
         }
+        return ret
     }
+
+    // pub fn to_ids( &self,  ret:&mut Vec<Info> )  {
+    //     ret.clear();
+    //     for (_i, obj) in &self.kmers {
+    //         ret.push(*obj );
+    //     }
+    // }
 
     pub fn to_header( &self ) -> std::string::String {
         let mut ret: Vec<std::string::String>;
-        ret = vec![" ".to_string(); self.kmers.len()];
-        let mut id = 0;
-        for (_, obj) in &self.kmers {
-            ret[id] = obj.name.clone();
-            id += 1;
+        ret = vec![" ".to_string(); self.names.len()];
+        //println!( "I get try to push into a {} sized vector", self.names.len());
+        for (obj, id) in &self.names {
+            //println!( "Pushing {} -> {}", obj, *id-1);
+            ret[*id-1] = format!( "{}", obj);
         }
-        return ret.join("\t")
+        return "CellID\t".to_owned()+&ret.join("\t")
     }
 
 }
-
 
 
 

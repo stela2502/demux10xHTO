@@ -3,13 +3,17 @@
 /// It should also fix some read errors in the cell ids. But that will come a little later
 
 use std::collections::BTreeMap;
-use kmers::naive_impl::Kmer;
+//use kmers::naive_impl::Kmer;
 use std::collections::HashSet;
 
 //use std::thread;
+use crate::geneids::GeneIds;
 
 //mod cellIDsError;
 //use crate::cellids::cellIDsError::NnuclError;
+use std::io::BufWriter;
+use std::fs::File;
+use std::io::Write;
 
 
 /// GeneCount is an entry in the CellData and therefore does not need to collect it's own id
@@ -19,13 +23,13 @@ pub struct GeneCount{
 
 impl GeneCount{
     pub fn new() ->Self{
-        umi = HashSet::new();
+        let umi = HashSet::new();
         Self{
             umi
         }
     }
 
-    pub fn add( &mut self, umi:u64 ){
+    pub fn insert( &mut self, umi:u64 ){
         self.umi.insert( umi );
     }
 
@@ -35,89 +39,190 @@ impl GeneCount{
 /// But I do not correct the UMIs here - even with sequencing errors 
 /// we should get a relatively correct picture as these folow normal distribution.
 pub struct CellData{
+    pub kmer_size: usize,
+    pub name: std::string::String,
     pub gene: BTreeMap<u64, GeneCount>
 }
 
 impl CellData{
-    pub fn new( ) -> Self{
-        gene =  BTreeMap::new(); // to collect the sample counts
+    pub fn new( kmer_size:usize, name: std::string::String ) -> Self{
+        let gene =  BTreeMap::new(); // to collect the sample counts
+        let loc_name = name.clone();
         Self{
+            kmer_size,
+            name: loc_name,
             gene
         }
     }
+
+
+    // pub fn get(&mut self, seq: &[u8] ) -> Result< &GeneCount, &str>{
+        
+    //     //let min_value = 2;
+    //     //let min_z = 1;
+    //     //let mut max_value = 0;
+    //     //let mut ret:u32 = 0;
+    //     let kmers = needletail::kmer::Kmers::new(seq, self.kmer_size as u8 );
+    //     let mut kmer_vec = Vec::<u64>::with_capacity(60);
+
+    //     self.fill_kmer_vec(kmers, &mut kmer_vec);
+
+    //     let id = 0;
+
+    //     let km = kmer_vec[id];
+    //     //println!("GeneIds::get - checking this sequence: {} and the at pos {}", km, id );
+    //     let ret = match self.gene.get_mut(&km){
+    //         Some(c1) => c1, 
+    //         None => return Err::<&GeneCount, &str>( "Genes NoMatch"), 
+    //     };
+    //     Ok( ret )
+    // }
+
+
     pub fn add(&mut self, geneid: u64, umi:u64 ){
-        match self.gene.get( geneid) {
-            Ok(mut gene) => gene.add( umi );
-            Err(_) => {
-                let gc = GeneCount::new();
+        match self.gene.get_mut( &geneid) {
+            Some( gene) => gene.insert( umi ),
+            None => {
+                let mut gc = GeneCount::new();
                 gc.insert( umi );
-                gene.insert( geneid, gc );
-        }
-    }
-    fn filleVec( &self, samples:Vec<u64>, ret:&Vec<u32>) {
-        for i in 0..samples.len() {
-            ret[i] = match self.gene.get( sample[id] ){
-                Ok(id) => id,
-                Err(_) => 0
+                self.gene.insert( geneid, gc );
             }
         }
     }
-    pub fn to_str<'live>(&self, samples:Vec<u64> ) -> &'live str {
-        let data = Vec<u32>;
-        data = vec!(0, samples.len());
-        fillVec( samples, data );
-        let ret = "\t".join( data ); 
-        return ret
+
+    // fn fill_kmer_vec<'a>(&self, seq: needletail::kmer::Kmers<'a>, kmer_vec: &mut Vec<u64>) {
+    //    kmer_vec.clear();
+    //    let mut bad = 0;
+    //    for km in seq {
+    //         // I would like to add a try catch here - possibly the '?' works?
+    //         // if this can not be converted it does not even make sense to keep this info
+    //         for nuc in km{
+    //             if *nuc ==b'N'{
+    //                 bad = 1;
+    //             }
+    //         }
+    //         if bad == 0{
+    //             // let s = str::from_utf8(km);
+    //             // println!( "this is the lib: {:?}",  s );
+    //             kmer_vec.push(Kmer::from(km).into_u64());
+    //         }
+    //    }
+    // }
+    
+    pub fn to_str<'live>(&mut self, samples:&Vec<u64> ) -> std::string::String {
+        let mut data:Vec<std::string::String>;
+        data = vec!(0.to_string(); samples.len()+1);
+        data[0] = self.name.clone();
+        let s = samples.clone();
+
+        //println!( "to_str -> what have I got here - if any {:?}", s );
+
+        for i in 0..s.len() {
+            data[i+1] = match self.gene.get( &s[i] ){
+                Some(id) => id.umi.len().to_string(),
+                None => "0".to_string()
+            }
+        }
+        let ret = data.join( "\t" );
+
+        format!( "{}",ret)
     }
 }
 
-// and here the data
-pub struct CellIds10x<'a>{    
-    //kmer_len: usize,
-    cells = BTreeMap<u64, CellData>
+
+
+// This CellIds10x needs to copy some of the logics from split2samples - no it actually is totally dufferent
+// Here we look for new sample ids and each sample id needs to be a total match to the previousely identified sample id
+// Of cause I could also implement something with a whitelist. But that is for the future.
+pub struct CellIds10x{    
+    kmer_size: usize,
+    //kmers: BTreeMap<u64, u32>,
+    cells: BTreeMap<u64, CellData>
 }
 
 
 // here the functions
-impl CellIds10x<'_>{
+impl <'a> CellIds10x{
 
-    pub fn new()-> Self {
+    pub fn new(kmer_size:usize )-> Self {
 
-        let mut cells = BTreeMap::<u64, CellData::new(10)>::new();
-        let kmer_len = 5;
+        let cells = BTreeMap::new();
+        // let kmer_len = 5;
         // TACAGAACA
 
         Self {
-            //kmer_len,
+            kmer_size,
             cells
         }
     }
 
-    pub fn add (&mut self, r1: &[u8], gene_id: u64  )-> Result< u32, &CellData>{
-        let mut cell_id:CellData;
+    /// here the get checks for a complete match of the cell ID
+    /// and if taht fails we need to add
+    pub fn get(&mut self, cell_id: u64, name: std::string::String ) -> Result< &mut CellData, &str>{
+        
+        //println!("CellIDs::get cell_id: {}", cell_id );
+        if ! self.cells.contains_key( &cell_id ){
+            let data = CellData::new(self.kmer_size, name );
+            self.cells.insert( cell_id, data );
+        }
 
-        let kmer =  &r1[0..16];
-        for nuc in km{  
-            if *nuc ==b'N'{
-                //let tmp = std::str::from_utf8(km)?;
-                return Err::<u32, &str>( "NnuclError");
-                //Err::<i32, NnuclError<'_>>( NnuclError::new( &tmp ));
-            }
-        }
-        let km = Kmer::from(kmer).into_u64();
-        let umi = Kmer::from( &r1[16..r1.len()] ).into_u64();
-        cell_id += match self.cells.get( km ){
-            Some(c1) => {
-                c1.add( gene_id, umi );
-            },
-            None => {
-                let data = CellData::new();
-                data.add( gene_id, umi );
-                self.cells.insert( &km, data );
-            }
-        }
+        let ret = match self.cells.get_mut(&cell_id){
+            Some(c1) => c1, 
+            None => return Err::< &mut CellData, &str>("BTreeMap Upstream error")
+        };
+        Ok( ret )
     }
 
+    // pub fn add (&mut self, cell_id: u64, gene_id: u64, umi: u64, name: std::string::String  )-> Result< (), &str>{
+    //     //let mut cell_id:CellData;
+
+    //     match self.cells.get_mut( &cell_id ){
+    //         Some(c1) => {
+    //             c1.add( gene_id, umi );
+    //         },
+    //         None => {
+    //             let mut data = CellData::new(self.kmer_size, name );
+    //             data.add( gene_id, umi );
+    //             self.cells.insert( cell_id, data );
+    //         }
+    //     };
+    //     Ok( () )
+    // }
+
+    pub fn write (&mut self, mut writer: BufWriter<&File>, genes: GeneIds) -> Result< (), &str>{
+        
+        match writeln!( writer, "{}", genes.to_header() ){
+            Ok(_) => (),
+            Err(err) => {
+                eprintln!("write error: {}", err);
+                return Err::<(), &str>("Header could not be written")
+            }
+        };
+
+        let mut gene_ids: Vec<u64>;
+        gene_ids = Vec::with_capacity( genes.kmers.len() );
+
+        genes.to_ids( &mut gene_ids );
+
+        //println!( "what have I got here - if any {:?}", gene_ids );
+
+
+        for ( _id,  cell_obj ) in &mut self.cells {
+
+            //println!( "get something here?: {}", cell_obj.to_str( &gene_ids ) );
+
+            match writeln!( writer, "{}", cell_obj.to_str( &gene_ids )){
+            // the compiler thought this might be more correct...
+            //match writeln!( writer, "{}", cell_obj.to_str( <Vec<u64> as Borrow<Borrowed>>::borrow(&gene_ids).clone() ) ){
+             Ok(_) => (),
+             Err(err) => {
+                 eprintln!("write error: {}", err);
+                 return Err::<(), &str>("cell data could not be written")   
+             }
+            }
+        }
+        Ok( () )
+    }
 }
 
 

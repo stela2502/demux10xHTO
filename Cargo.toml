@@ -1,11 +1,11 @@
 [package]
-name = "split2samples"
+name = "demux10x"
 version = "0.1.0"
 edition = "2018"
 license-file = "LICENSE"
-description = "Split BD rapsody fastq files into sample specific fastq files"
-homepage = "https://github.com/stela2502/split2samples"
-repository = "https://github.com/stela2502/split2samples"
+description = "Quantify simple reads in a 10x results data set"
+homepage = "https://github.com/stela2502/demux10xHTO"
+repository = "https://github.com/stela2502/demux10xHTO"
 readme = "README.md"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -16,7 +16,8 @@ anyhow = "1.0.66"
 needletail = "0.4"
 clap = { version = "3.0.14", features = ["derive"] }
 csv = "1.1"
-serde = { version="1.0.103", features = ["derive"] }
+#serde = { version="1.0.103", features = ["derive", "Deserialize"] }
+serde = "1.0.103"
 flate2 = "1.0.24"
 kmers = { git="https://github.com/COMBINE-lab/kmers" }
 glob = "0.3.0"

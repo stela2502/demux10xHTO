@@ -135,13 +135,6 @@ fn main() {
                         continue 'main;
                     }
                 }
-                let seq2 = seqrec.seq().into_owned(); // here the cells are coded
-                for nuc in &seq2 {
-                    if *nuc ==b'N'{
-                        unknown +=1;
-                        continue 'main;
-                    }
-                }
 
                 //let kmer = needletail::kmer::Kmers::new(&seq[16..seq.len()], (seq.len()-16) as u8 ).next();
                 for kmer in needletail::kmer::Kmers::new(&seq[15..seq.len()], (seq.len()-16) as u8 ){ // should get me exactly 1

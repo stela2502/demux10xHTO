@@ -50,6 +50,12 @@ impl GeneIds{
 
     pub fn add(&mut self, seq: &[u8], name: std::string::String ){
         for kmer in needletail::kmer::Kmers::new(seq, self.kmer_size as u8 ) {
+            for nuc in kmer {
+                if *nuc ==b'N'{
+                    continue;
+                }
+            }
+            //println!("Adding a gene id os length {} with seq {:?}", self.kmer_size, std::str::from_utf8(kmer) );
             // if  id == 1 { let s = str::from_utf8(kmer); println!( "this is the lib: {:?}",  s )};
             let km = Kmer::from(kmer).into_u64();
             let info = Info::new(km, name.clone() );

@@ -48,7 +48,7 @@ demux10x -h
 
 
 demux10x 0.1.0
-Stefan L. <stefan.lang@med.lu.se>, Rob P. <rob@cs.umd.edu>
+Stefan L. <stefan.lang@med.lu.se>
 Split a pair of BD rhapsody fastq files (R1 and R2) into sample specific fastq pairs
 
 USAGE:

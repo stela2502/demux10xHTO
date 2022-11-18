@@ -42,7 +42,8 @@ pub struct GeneIds{
     pub seq_len: usize, // size of the sequence that has been split into kmers
     kmer_size: usize, // size of the kmers
     pub names : BTreeMap<std::string::String, usize>, // gene name and gene id
-    bad_entries: HashSet<u64> // non unique u64 values that will not be recoreded.
+    bad_entries: HashSet<u64>, // non unique u64 values that will not be recoreded.
+    max_id: usize // hope I get the ids right this way...
 }
 
 // here the functions
@@ -52,12 +53,14 @@ impl GeneIds{
         let names = BTreeMap::<std::string::String, usize>::new();
         let bad_entries = HashSet::<u64>::new();
         let seq_len = 0;
+        let max_id = 0;
         Self {
             kmers,
             seq_len,
             kmer_size: kmer_size,
             names,
-            bad_entries
+            bad_entries,
+            max_id
         }
     }
 
@@ -83,9 +86,12 @@ impl GeneIds{
                 self.kmers.remove( &km );
             }else {
                 //let info = Info::new(km, name.clone() );
-                self.names.insert( name.clone(), self.names.len() );
-
-                self.kmers.insert(km, self.names.len() );
+                if ! self.names.contains_key( &name ){
+                    self.names.insert( name.clone(), self.max_id );
+                    self.max_id += 1;
+                }
+                println!("I insert a kmer for id {}", self.max_id-1 );
+                self.kmers.insert(km, self.max_id-1 );
             }
         }
     }
@@ -118,7 +124,10 @@ impl GeneIds{
                     sums[*c1] += 1;
                     if max < sums[*c1]{
                         //println!("the new max is {}", max);
-                        max =  sums[*c1]
+                        max =  sums[*c1];
+                        if max > 1{
+                            break // 2 unique hits should be enough
+                        }
                     };
                 }
                 None => ()
@@ -159,19 +168,3 @@ impl GeneIds{
 
 
 
-#[cfg(test)]
-mod tests {
-    #[test]    
-    fn test2 () {
-        let genes = super::parse_bc_map( "testData/HTOs.csv", 9 );
-
-        let exp = vec![0,1,2,3,4,5,6];
-        let mut data = Vec::<usize>::with_capacity(7);
-        for ( name, id ) in &genes.names{
-            eprintln!( "{}", id);
-            data.push(*id -1);
-        }
-        assert_eq!( exp, data);
-
-    }
-}

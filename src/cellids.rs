@@ -40,7 +40,7 @@ impl CellData{
     }
 
     pub fn add(&mut self, geneid: usize, umi:u64 ){
-
+        //println!("adding gene id {}", geneid );
         match self.genes.get_mut( &geneid ) {
             Some( gene ) => {
                 gene.insert( umi ); // the gene has already been added - check if umi matters
@@ -64,7 +64,8 @@ impl CellData{
         let mut max_name:std::string::String = "na".to_string();
 
         for (name, id) in &gene_info.names {
-            match self.genes.get( id ){
+            //println!("I collect expression for id {}", id);
+            match self.genes.get( id  ){
                 Some(hash) => {
                     let n = hash.len();
                     total += n;

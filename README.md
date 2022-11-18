@@ -1,7 +1,12 @@
 # demux10xHTO
 
-A tiny project specific 10x demultiplexer as I did not get any data regarding demultiplexed info. Annoying.
+This program can be used to quantify some specific transcripts in a 10x data.
+It was developed to demultiplex sample reads and antibody reads from 10x data.
 
+Input is not a complex index, but a simple two columns table defining the search name and search sequence.
+The tool will 'only' look for these sequences, not the reverse ones.
+
+It has been tested with HTO and A
 
 # Test case
 
@@ -11,6 +16,15 @@ A tiny project specific 10x demultiplexer as I did not get any data regarding de
 # or 
 
 ./target/release/demux10x -r testData/n10000_HTO_S1_L001_R1_001.fastq.gz -f testData/n10000_HTO_S1_L001_R2_001.fastq.gz -b testData/HTOs.csv -o testData/outpath
+
+```
+
+I have not started to implement a test based on this, but you can check the results e.g. with:
+```
+## first 'gene'
+cut -f 2 testData/outpath/Cell2Sample.n10000_HTO_S1_L001_R1_001.fastq.gz.tsv | sort |uniq  -c
+## last 'gene'
+cut -f 7 testData/outpath/Cell2Sample.n10000_HTO_S1_L001_R1_001.fastq.gz.tsv | sort |uniq  -c
 
 ```
 

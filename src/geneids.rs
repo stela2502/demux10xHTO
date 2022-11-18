@@ -90,7 +90,7 @@ impl GeneIds{
                     self.names.insert( name.clone(), self.max_id );
                     self.max_id += 1;
                 }
-                println!("I insert a kmer for id {}", self.max_id-1 );
+                //println!("I insert a kmer for id {}", self.max_id-1 );
                 self.kmers.insert(km, self.max_id-1 );
             }
         }

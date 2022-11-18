@@ -171,7 +171,7 @@ fn main() {
                             Err(_err) => {
                                 //eprintln!("But somehow we could not get the entry added!?! {} ", err);
                                 unknown +=1;
-                                continue 'main;
+                                //continue 'main; //not necessary here
                             }, //we mainly need to collect cellids here and it does not make sense to think about anything else right now.
                         };
                     },
@@ -227,20 +227,3 @@ pub fn fill_kmer_vec<'a>( seq: needletail::kmer::Kmers<'a>, kmer_vec: &mut Vec<u
    }
 }
 
-
-#[cfg(test)]
-mod tests {
-    #[test]    
-    fn test1 () {
-        let genes = super::parse_bc_map( "testData/HTOs.csv", 9 );
-
-        let exp = vec![0,1,2,3,4,5,6];
-        let mut data = Vec::<usize>::with_capacity(7);
-        for ( name, id ) in &genes.names{
-            eprintln!( "{}", id);
-            data.push(*id -1);
-        }
-        assert_eq!( exp, data);
-
-    }
-}

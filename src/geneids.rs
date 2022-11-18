@@ -10,23 +10,23 @@ use crate::fill_kmer_vec;
 //mod cellIDsError;
 //use crate::cellids::cellIDsError::NnuclError;
 
-#[derive(Debug)]
-pub struct Info {
-//    pub cells: CellIds10x,
-    pub id: u64,
-    pub name: std::string::String
-}
+// #[derive(Debug)]
+// pub struct Info {
+// //    pub cells: CellIds10x,
+//     pub id: u64,
+//     pub name: std::string::String
+// }
 
 
-impl  Info{
-        pub fn new( id: u64, name: std::string::String )-> Self {
-            let loc_name = name.clone();
-            Self {
-                id,
-                name: loc_name,
-            }
-        }
-}
+// impl  Info{
+//         pub fn new( id: u64, name: std::string::String )-> Self {
+//             let loc_name = name.clone();
+//             Self {
+//                 id,
+//                 name: loc_name,
+//             }
+//         }
+// }
 
 /// GeneIds harbors the antibody tags
 /// these sequences have (to my knowmledge) 15 bp os length
@@ -38,17 +38,17 @@ impl  Info{
 /// names       : a hashset for the gene names
 /// bad_entries : a hash to save bad entries (repetetive ones)
 pub struct GeneIds{    
-    pub kmers: BTreeMap<u64, Info>,
-    pub seq_len: usize,
-    kmer_size: usize,
-    pub names: BTreeMap<std::string::String, usize>,
-    bad_entries: HashSet<u64>
+    pub kmers: BTreeMap<u64, usize>, // the search map with kamer u64 reps.
+    pub seq_len: usize, // size of the sequence that has been split into kmers
+    kmer_size: usize, // size of the kmers
+    pub names : BTreeMap<std::string::String, usize>, // gene name and gene id
+    bad_entries: HashSet<u64> // non unique u64 values that will not be recoreded.
 }
 
 // here the functions
 impl GeneIds{
     pub fn new(kmer_size: usize )-> Self {
-        let kmers = BTreeMap::<u64, Info>::new();
+        let kmers = BTreeMap::<u64, usize>::new();
         let names = BTreeMap::<std::string::String, usize>::new();
         let bad_entries = HashSet::<u64>::new();
         let seq_len = 0;
@@ -75,18 +75,22 @@ impl GeneIds{
             //println!("Adding a gene id os length {} with seq {:?}", self.kmer_size, std::str::from_utf8(kmer) );
             // if  id == 1 { let s = str::from_utf8(kmer); println!( "this is the lib: {:?}",  s )};
             let km = Kmer::from(kmer).into_u64();
+            if self.bad_entries.contains( &km ){
+                continue
+            }
             if self.kmers.contains_key ( &km ){
                 self.bad_entries.insert( km.clone() );
                 self.kmers.remove( &km );
             }else {
-                let info = Info::new(km, name.clone() );
-                self.kmers.insert(km, info);
+                //let info = Info::new(km, name.clone() );
                 self.names.insert( name.clone(), self.names.len() );
+
+                self.kmers.insert(km, self.names.len() );
             }
         }
     }
 
-    pub fn get(&mut self, seq: &[u8] ) -> Option< u64 >{
+    pub fn get(&mut self, seq: &[u8] ) -> Option< usize >{
         
         // let min_value = 2;
         // let min_z = 1;
@@ -97,19 +101,37 @@ impl GeneIds{
 
         fill_kmer_vec(kmers, &mut kmer_vec);
 
-        let mut ret:Option<u64> = None;
+        let mut ret:Option<usize> = None;
 
         if kmer_vec.len() == 0 {
-            eprintln!( "Seq length: {};  -> problematic sequence: {:?}", self.kmer_size, std::str::from_utf8( seq ) );
+            eprintln!( "bad sequence: {:?}", std::str::from_utf8( seq ) );
             return ret
         }  
+        let mut sums = vec![0 ;self.names.len()];
+        let mut max = 0;
 
         for km in kmer_vec{
-            ret = match self.kmers.get(&km){
-                Some(c1) => Some(c1.id), 
-                None => continue
+            //println!( "searching for kmer {}", km);
+            match self.kmers.get(&km){
+                Some(c1) => {
+                    //println!("And got a match: {}", c1);
+                    sums[*c1] += 1;
+                    if max < sums[*c1]{
+                        //println!("the new max is {}", max);
+                        max =  sums[*c1]
+                    };
+                }
+                None => ()
             };
         }
+        for i in 0..sums.len(){
+            if sums[i] == max{
+                //println!("Now the ret hould have the value {} resp {:?}", i, Some(i));
+                ret = Some(i);
+                break;
+            }
+        }
+        //println!("return geneid {:?}", ret);
         return ret
     }
 
@@ -127,8 +149,8 @@ impl GeneIds{
             //println!( "Pushing {} -> {}", obj, *id-1);
             ret.push( format!( "{}", obj)) ;
         }
-        ret.push("Faction total".to_string());
         ret.push("Most likely name".to_string());
+        ret.push("Faction total".to_string());
         return "CellID\t".to_owned()+&ret.join("\t")
     }
 
@@ -136,3 +158,20 @@ impl GeneIds{
 
 
 
+
+#[cfg(test)]
+mod tests {
+    #[test]    
+    fn test2 () {
+        let genes = super::parse_bc_map( "testData/HTOs.csv", 9 );
+
+        let exp = vec![0,1,2,3,4,5,6];
+        let mut data = Vec::<usize>::with_capacity(7);
+        for ( name, id ) in &genes.names{
+            eprintln!( "{}", id);
+            data.push(*id -1);
+        }
+        assert_eq!( exp, data);
+
+    }
+}

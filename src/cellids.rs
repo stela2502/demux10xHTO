@@ -18,24 +18,6 @@ use std::io::Write;
 
 use std::path::PathBuf;
 
-/// GeneCount is an entry in the CellData and therefore does not need to collect it's own id
-pub struct GeneCount{
-    pub umi: HashSet<u64>
-}
-
-impl GeneCount{
-    pub fn new() ->Self{
-        let umi = HashSet::new();
-        Self{
-            umi
-        }
-    }
-
-    pub fn insert( &mut self, umi:u64 ){
-        self.umi.insert( umi );
-    }
-
-}
 
 /// CellData here is a storage for the total UMIs. UMIs will be checked per cell
 /// But I do not correct the UMIs here - even with sequencing errors 
@@ -43,119 +25,62 @@ impl GeneCount{
 pub struct CellData{
     pub kmer_size: usize,
     pub name: std::string::String,
-    pub gene: BTreeMap<u64, GeneCount>
+    pub genes: BTreeMap<usize, HashSet<u64>>
 }
 
 impl CellData{
     pub fn new( kmer_size:usize, name: std::string::String ) -> Self{
-        let gene =  BTreeMap::new(); // to collect the sample counts
+        let genes =  BTreeMap::new(); // to collect the sample counts
         let loc_name = name.clone();
         Self{
             kmer_size,
             name: loc_name,
-            gene
+            genes
         }
     }
 
+    pub fn add(&mut self, geneid: usize, umi:u64 ){
 
-    // pub fn get(&mut self, seq: &[u8] ) -> Result< &GeneCount, &str>{
-        
-    //     //let min_value = 2;
-    //     //let min_z = 1;
-    //     //let mut max_value = 0;
-    //     //let mut ret:u32 = 0;
-    //     let kmers = needletail::kmer::Kmers::new(seq, self.kmer_size as u8 );
-    //     let mut kmer_vec = Vec::<u64>::with_capacity(60);
-
-    //     self.fill_kmer_vec(kmers, &mut kmer_vec);
-
-    //     let id = 0;
-
-    //     let km = kmer_vec[id];
-    //     //println!("GeneIds::get - checking this sequence: {} and the at pos {}", km, id );
-    //     let ret = match self.gene.get_mut(&km){
-    //         Some(c1) => c1, 
-    //         None => return Err::<&GeneCount, &str>( "Genes NoMatch"), 
-    //     };
-    //     Ok( ret )
-    // }
-
-
-    pub fn add(&mut self, geneid: u64, umi:u64 ){
-        match self.gene.get_mut( &geneid) {
-            Some( gene) => gene.insert( umi ),
+        match self.genes.get_mut( &geneid ) {
+            Some( gene ) => {
+                gene.insert( umi ); // the gene has already been added - check if umi matters
+                }, 
             None => {
-                let mut gc = GeneCount::new();
+                let mut gc:HashSet<u64> = HashSet::new(); //to store the umis
                 gc.insert( umi );
-                self.gene.insert( geneid, gc );
+                self.genes.insert( geneid, gc );
             }
         }
     }
-
-    // fn fill_kmer_vec<'a>(&self, seq: needletail::kmer::Kmers<'a>, kmer_vec: &mut Vec<u64>) {
-    //    kmer_vec.clear();
-    //    let mut bad = 0;
-    //    for km in seq {
-    //         // I would like to add a try catch here - possibly the '?' works?
-    //         // if this can not be converted it does not even make sense to keep this info
-    //         for nuc in km{
-    //             if *nuc ==b'N'{
-    //                 bad = 1;
-    //             }
-    //         }
-    //         if bad == 0{
-    //             // let s = str::from_utf8(km);
-    //             // println!( "this is the lib: {:?}",  s );
-    //             kmer_vec.push(Kmer::from(km).into_u64());
-    //         }
-    //    }
-    // }
     
-    pub fn to_str<'live>(&mut self, genes:&GeneIds ) -> std::string::String {
+    pub fn to_str<'live>(&mut self, gene_info:&GeneIds ) -> std::string::String {
 
-        let mut data = Vec::<std::string::String>::with_capacity( genes.names.len()+3 );
+        let mut data = Vec::<std::string::String>::with_capacity( gene_info.names.len()+3 );
         data.push(self.name.clone());
 
-        let mut names = Vec::<std::string::String>::with_capacity( genes.names.len() );
-        for (name, _id) in &genes.names{
-            names.push( name.clone() )
-        }
-        let mut nums:Vec<u32>;
-        let mut real_id:usize;
+        // here our internal data already should be stored with the same ids as the gene names.
+        let mut total = 0;
+        let mut max = 0;
+        let mut max_name:std::string::String = "na".to_string();
 
-        nums = vec!(0 as u32; genes.names.len());
-
-        for (id , info ) in &genes.kmers {
-            real_id = match &genes.names.get( &info.name ){
-                Some(num) => **num,
-                None => panic!("I can not find the name {} in the genes object", info.name )
-            };
-            nums[ real_id-1 ] += match self.gene.get( id ){
-                Some(gene_count) => gene_count.umi.len() as u32,
-                None => 0 as u32
+        for (name, id) in &gene_info.names {
+            match self.genes.get( id ){
+                Some(hash) => {
+                    let n = hash.len();
+                    total += n;
+                    if  n > max{
+                        max = n;
+                        max_name = name.clone();
+                    }
+                    data.push( n.to_string() )
+                },
+                None => {
+                    data.push( 0.to_string() )
+                }
             }
         }
-
-        //println!("I have a data vector wiith capacity {} and a nums vector with {}", genes.names.len()+1, nums.len());
-        
-        // get some statis and a little bit more
-        let mut total:u32 = 0;
-        let mut max:u32 = 0;
-
-        for i in 0..nums.len() {
-            total += nums[i];
-            if  nums[i] > max{
-                max = nums[i]
-            }
-            data.push( nums[i].to_string())
-        }
-        for i in 0..nums.len() {
-            if nums[i] == max {
-                data.push( names[i].clone());
-                break; 
-            }
-        }
-        data.push( (max as f32 / total as f32 ).to_string());
+        data.push( max_name.clone() ); // max expressing gene (or sample id in an HTO analysis)
+        data.push( (max as f32 / total as f32 ).to_string()); // fraction of reads for the max gene
 
         let ret = data.join( "\t" );
         format!( "{}",ret)
@@ -190,7 +115,7 @@ impl <'a> CellIds10x{
     }
 
     /// here the get checks for a complete match of the cell ID
-    /// and if taht fails we need to add
+    /// and if that fails we need to add
     pub fn get(&mut self, cell_id: u64, name: std::string::String ) -> Result< &mut CellData, &str>{
         
         //println!("CellIDs::get cell_id: {}", cell_id );
@@ -205,22 +130,6 @@ impl <'a> CellIds10x{
         };
         Ok( ret )
     }
-
-    // pub fn add (&mut self, cell_id: u64, gene_id: u64, umi: u64, name: std::string::String  )-> Result< (), &str>{
-    //     //let mut cell_id:CellData;
-
-    //     match self.cells.get_mut( &cell_id ){
-    //         Some(c1) => {
-    //             c1.add( gene_id, umi );
-    //         },
-    //         None => {
-    //             let mut data = CellData::new(self.kmer_size, name );
-    //             data.add( gene_id, umi );
-    //             self.cells.insert( cell_id, data );
-    //         }
-    //     };
-    //     Ok( () )
-    // }
 
     pub fn write (&mut self, file_path: PathBuf, genes: &GeneIds) -> Result< (), &str>{
         

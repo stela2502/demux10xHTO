@@ -1,3 +1,4 @@
+[![Rust](https://github.com/stela2502/demux10xHTO/actions/workflows/rust.yml/badge.svg)](https://github.com/stela2502/demux10xHTO/actions/workflows/rust.yml)
 # demux10xHTO
 
 This program can be used to quantify some specific transcripts in a 10x data.

@@ -11,12 +11,8 @@ use kmers::naive_impl::Kmer;
 // use std::io::BufReader;
 // use std::str;
 
-mod cellids;
-use crate::cellids::CellIds10x;
-//use std::collections::BTreeMap;
-
-mod geneids;
-use crate::geneids::GeneIds;
+use demux10x::cellids::main_class::CellIds10x;
+use demux10x::geneids::GeneIds;
 
 use std::path::PathBuf;
 //use std::fs::File;
@@ -208,24 +204,7 @@ fn main() {
 
 }
 
-pub fn fill_kmer_vec<'a>( seq: needletail::kmer::Kmers<'a>, kmer_vec: &mut Vec<u64>) {
-   kmer_vec.clear();
-   let mut bad;
-   for km in seq {
-    bad = 0;
-        for nuc in km {
-            if *nuc ==b'N'{
-                bad = 1;
-            }
-        }
 
-        if bad == 0{
-            // let s = str::from_utf8(km);
-            // println!( "this is the lib: {:?}",  s );
-            kmer_vec.push(Kmer::from(km).into_u64());
-        }
-   }
-}
 
 #[cfg(test)]
 mod tests {
@@ -243,7 +222,7 @@ mod tests {
     }
     fn test_genes_get (){
 
-        let  genes = super::parse_bc_map( "testData/HTOs.csv", 9 );
+        let mut genes = super::parse_bc_map( "testData/HTOs.csv", 9 );
         // Hope I get the correct id:
         let mut val = genes.get( b"CTTGCCGCATGTCAT" );
         assert_eq!( Some(2), val );

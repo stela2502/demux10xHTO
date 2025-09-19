@@ -5,7 +5,6 @@ use std::collections::BTreeMap;
 use std::collections::HashSet;
 
 use kmers::naive_impl::Kmer;
-use crate::fill_kmer_vec;
 
 //mod cellIDsError;
 //use crate::cellids::cellIDsError::NnuclError;
@@ -38,7 +37,7 @@ use crate::fill_kmer_vec;
 /// names       : a hashset for the gene names
 /// bad_entries : a hash to save bad entries (repetetive ones)
 pub struct GeneIds{    
-    pub kmers: BTreeMap<u64, usize>, // the search map with kamer u64 reps.
+    pub kmers: BTreeMap<u64, usize>, // the search map with kmer u64 reps.
     pub seq_len: usize, // size of the sequence that has been split into kmers
     kmer_size: usize, // size of the kmers
     pub names : BTreeMap<std::string::String, usize>, // gene name and gene id
@@ -165,6 +164,25 @@ impl GeneIds{
 
 }
 
+
+pub fn fill_kmer_vec<'a>( seq: needletail::kmer::Kmers<'a>, kmer_vec: &mut Vec<u64>) {
+   kmer_vec.clear();
+   let mut bad;
+   for km in seq {
+    bad = 0;
+        for nuc in km {
+            if *nuc ==b'N'{
+                bad = 1;
+            }
+        }
+
+        if bad == 0{
+            // let s = str::from_utf8(km);
+            // println!( "this is the lib: {:?}",  s );
+            kmer_vec.push(Kmer::from(km).into_u64());
+        }
+   }
+}
 
 
 
